@@ -1,9 +1,8 @@
-package GeeRpc
+package codec
 
 import (
 	"encoding/json"
 	"fmt"
-	"geerpc/codec"
 	"io"
 	"log"
 	"net"
@@ -23,12 +22,12 @@ const MagicNumber = 0x3bef5c
 
 type Option struct {
 	MagicNumber int
-	CodecType   codec.Type
+	CodecType   Type
 }
 
 var DefaultOption = &Option{
 	MagicNumber: MagicNumber,
-	CodecType:   codec.GobType,
+	CodecType:   GobType,
 }
 
 /*
@@ -76,7 +75,7 @@ func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 		return
 	}
 
-	f := codec.NewCodecFuncMap[opt.CodecType]
+	f := NewCodecFuncMap[opt.CodecType]
 	if f == nil {
 		log.Printf("rpc server : invalid codec type %s", opt.CodecType)
 	}
@@ -85,7 +84,7 @@ func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 
 var invalidRequest = struct{}{}
 
-func (server *Server) serveCodec(cc codec.CodeC) {
+func (server *Server) serveCodec(cc CodeC) {
 	sending := new(sync.Mutex) // make sure to send a complete response
 	wg := new(sync.WaitGroup)  // wait until all request are handled
 	for {
@@ -109,12 +108,12 @@ func (server *Server) serveCodec(cc codec.CodeC) {
 }
 
 type request struct {
-	h            *codec.Header
+	h            *Header
 	argv, replyv reflect.Value
 }
 
-func (server *Server) readRequestHeader(cc codec.CodeC) (*codec.Header, error) {
-	var h codec.Header
+func (server *Server) readRequestHeader(cc CodeC) (*Header, error) {
+	var h Header
 	if err := cc.ReadHeader(&h); err != nil {
 		if err != io.EOF && err != io.ErrUnexpectedEOF {
 			log.Println("rpc server: read header error :", err)
@@ -125,7 +124,7 @@ func (server *Server) readRequestHeader(cc codec.CodeC) (*codec.Header, error) {
 	return &h, nil
 }
 
-func (server *Server) readRequest(cc codec.CodeC) (*request, error) {
+func (server *Server) readRequest(cc CodeC) (*request, error) {
 	h, err := server.readRequestHeader(cc)
 	if err != nil {
 		return nil, err
@@ -139,7 +138,7 @@ func (server *Server) readRequest(cc codec.CodeC) (*request, error) {
 	return req, nil
 }
 
-func (server *Server) sendResponse(cc codec.CodeC, h *codec.Header, body interface{}, sending *sync.Mutex) {
+func (server *Server) sendResponse(cc CodeC, h *Header, body interface{}, sending *sync.Mutex) {
 	sending.Lock()
 	defer sending.Unlock()
 	if err := cc.Write(h, body); err != nil {
@@ -147,7 +146,7 @@ func (server *Server) sendResponse(cc codec.CodeC, h *codec.Header, body interfa
 	}
 }
 
-func (server *Server) handleRequest(cc codec.CodeC, req *request, sending *sync.Mutex, wg *sync.WaitGroup) {
+func (server *Server) handleRequest(cc CodeC, req *request, sending *sync.Mutex, wg *sync.WaitGroup) {
 	defer wg.Done()
 	log.Println(req.h, req.argv.Elem())
 	req.replyv = reflect.ValueOf(fmt.Sprintf("geerpc resp %d", req.h.Seq))

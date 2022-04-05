@@ -28,8 +28,8 @@ func NewGobCodec(conn io.ReadWriteCloser) CodeC {
 	return &GobCodec{
 		conn:   conn,
 		buf:    buf,
-		encode: gob.NewEncoder(conn),
-		decode: gob.NewDecoder(buf),
+		encode: gob.NewEncoder(buf),
+		decode: gob.NewDecoder(conn),
 	}
 }
 
